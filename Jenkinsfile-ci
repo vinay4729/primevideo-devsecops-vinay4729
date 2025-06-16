@@ -57,6 +57,7 @@ pipeline {
   post {
     success {
       echo '✅ CI Pipeline completed successfully.'
+      build job: 'primevideo-cd'
     }
     failure {
       echo '❌ CI Pipeline failed.'
