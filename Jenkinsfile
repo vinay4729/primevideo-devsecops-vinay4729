@@ -1,0 +1,65 @@
+pipeline {
+  agent any
+
+  environment {
+    SONARQUBE = 'SonarQube'
+    DOCKER_IMAGE = 'kiranitth/primevideo-app:latest'
+    SCANNER_HOME = tool 'sonar-scanner'
+  }
+
+  tools {
+    nodejs 'node18'
+    jdk 'jdk-17'
+  }
+
+  stages {
+    stage('📥 Clone Code from GitHub') {
+      steps {
+        git branch: 'main',
+            credentialsId: 'github-token',
+            url: 'https://github.com/kirankumaritth/amazon-prime-video-kubernetes.git'
+      }
+    }
+
+    stage('🔍 SonarQube Code Analysis') {
+      environment {
+        PATH = "${SCANNER_HOME}/bin:${env.PATH}"
+      }
+      steps {
+        withSonarQubeEnv("${SONARQUBE}") {
+          sh 'sonar-scanner -Dsonar.projectKey=prime-video -Dsonar.sources=.'
+        }
+      }
+    }
+
+    stage('🐳 Build Docker Image') {
+      steps {
+        sh 'docker build -t $DOCKER_IMAGE .'
+      }
+    }
+
+    stage('🛡️ Trivy Image Scan') {
+      steps {
+        sh 'trivy image $DOCKER_IMAGE || true'
+      }
+    }
+
+    stage('📤 Push Image to DockerHub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+          sh 'docker push $DOCKER_IMAGE'
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ CI Pipeline completed successfully.'
+    }
+    failure {
+      echo '❌ CI Pipeline failed.'
+    }
+  }
+}
