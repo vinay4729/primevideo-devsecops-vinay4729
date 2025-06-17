@@ -15,7 +15,7 @@ pipeline {
   stages {
     stage('📥 Clone Code from GitHub') {
       steps {
-        git branch: 'main',
+        git branch: 'master',
             credentialsId: 'github-token',
             url: 'https://github.com/kirankumaritth/amazon-prime-video-devsecops.git'
       }
