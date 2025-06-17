@@ -52,15 +52,29 @@ pipeline {
         }
       }
     }
+
+    stage('🚀 Trigger CD Pipeline') {
+      steps {
+        script {
+          try {
+            echo "🔁 Trying to trigger CD pipeline 'primevideo-cd'..."
+            build job: 'primevideo-cd', wait: false
+            echo "✅ CD pipeline triggered successfully."
+          } catch (err) {
+            echo "⚠️ CD pipeline 'primevideo-cd' not found or not configured yet."
+            echo "ℹ️ CI pipeline completed. Once CD is created, this stage will trigger it automatically."
+          }
+        }
+      }
+    }
   }
 
   post {
-      success {
-          echo '✅ CI stages completed successfully.'
-      }
-      failure {
-          echo '❌ CI Pipeline marked as failed. This might be due to the optional trigger for the CD pipeline (primevideo-cd) not running or failing.'
-          echo '🔍 Note: All CI steps may have passed. Please check logs for exact status.'
-      }
+    success {
+      echo '✅ CI pipeline completed successfully.'
+    }
+    failure {
+      echo '❌ CI pipeline failed. Check console output for more details.'
+    }
   }
 }
