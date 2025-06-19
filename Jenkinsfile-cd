@@ -11,33 +11,53 @@ pipeline {
       steps {
         script {
           sh """
-            echo "🛑 Cleaning up old container and port 3000..."
+            echo "🧹 Cleaning up old container and port 3000..."
 
-            # Stop and remove container if it exists
-            if docker ps -q -f name=$CONTAINER_NAME | grep -q .; then
-              echo "Stopping container $CONTAINER_NAME"
-              docker stop $CONTAINER_NAME
+            # Force stop and remove any container with the same name
+            docker rm -f $CONTAINER_NAME 2>/dev/null || echo "No container named $CONTAINER_NAME"
+
+            # Stop & remove any containers using port 3000
+            CONTAINERS=\$(docker ps -a --filter 'publish=3000' --format '{{.ID}}')
+            if [ ! -z "\$CONTAINERS" ]; then
+              echo "Removing container(s) using port 3000: \$CONTAINERS"
+              docker rm -f \$CONTAINERS || true
+            else
+              echo "✅ No containers using port 3000."
             fi
 
-            if docker ps -aq -f name=$CONTAINER_NAME | grep -q .; then
-              echo "Removing container $CONTAINER_NAME"
-              docker rm $CONTAINER_NAME
-            fi
-
-            # Kill any container using port 3000
-            docker ps --filter publish=3000 --format '{{.ID}}' | xargs -r docker stop || true
-            docker ps -a --filter publish=3000 --format '{{.ID}}' | xargs -r docker rm || true
-
-            # Kill any process (not docker) using port 3000
+            # Kill any system process using port 3000
             if lsof -i :3000 | grep LISTEN; then
-              echo "Freeing port 3000 from system process"
+              echo "Killing system process using port 3000"
               fuser -k 3000/tcp || true
             else
-              echo "✅ Port 3000 is already free."
+              echo "✅ Port 3000 is free."
             fi
           """
         }
       }
+    }
+
+    stage('📥 Pull Docker Image from DockerHub') {
+      steps {
+        echo "Pulling latest image: $DOCKER_IMAGE"
+        sh "docker pull $DOCKER_IMAGE"
+      }
+    }
+
+    stage('🚀 Run New Docker Container') {
+      steps {
+        echo "Running container: $CONTAINER_NAME"
+        sh "docker run -d --name $CONTAINER_NAME --restart unless-stopped -p 3000:3000 $DOCKER_IMAGE"
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Deployment successful.'
+    }
+    failure {
+      echo '❌ Deployment failed.'
     }
   }
 }
