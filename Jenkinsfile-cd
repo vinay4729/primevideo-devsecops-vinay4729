@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_IMAGE = 'kiranitth/primevideo-app:latest'
+    DOCKER_IMAGE = 'vinay4729/primevideo-app:latest'
     CONTAINER_NAME = 'primevideo-app'
   }
 
