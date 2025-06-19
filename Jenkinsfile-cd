@@ -5,49 +5,30 @@ pipeline {
     DOCKER_IMAGE = 'vinay4729/primevideo-app:latest'
     CONTAINER_NAME = 'primevideo-app'
   }
+stage('🛑 Stop & Remove Old Container') {
+  steps {
+    script {
+      sh """
+        # Stop container if it's running
+        if docker ps -q -f name=$CONTAINER_NAME | grep -q .; then
+          echo "Stopping running container: $CONTAINER_NAME"
+          docker stop $CONTAINER_NAME
+        fi
 
-  stages {
-    stage('🛑 Stop & Remove Old Container') {
-      steps {
-        script {
-          sh """
-            # Stop and remove existing container if running
-            docker ps -q --filter "name=$CONTAINER_NAME" | grep -q . && \
-            docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME || echo "No existing container to stop."
+        # Remove container if it exists (running or stopped)
+        if docker ps -aq -f name=$CONTAINER_NAME | grep -q .; then
+          echo "Removing existing container: $CONTAINER_NAME"
+          docker rm $CONTAINER_NAME
+        fi
 
-            # Free up port 3000 if anything is using it
-            if lsof -i :3000 | grep LISTEN; then
-              echo "Port 3000 is in use. Killing process..."
-              fuser -k 3000/tcp || true
-            else
-              echo "Port 3000 is free."
-            fi
-          """
-        }
-      }
-    }
-
-    stage('📥 Pull Docker Image from DockerHub') {
-      steps {
-        echo "Pulling latest image: $DOCKER_IMAGE"
-        sh 'docker pull $DOCKER_IMAGE'
-      }
-    }
-
-    stage('🚀 Run New Docker Container') {
-      steps {
-        echo "Running container: $CONTAINER_NAME"
-        sh 'docker run -d --name $CONTAINER_NAME --restart unless-stopped -p 3000:3000 $DOCKER_IMAGE'
-      }
-    }
-  }
-
-  post {
-    success {
-      echo '✅ Deployment successful.'
-    }
-    failure {
-      echo '❌ Deployment failed.'
+        # Free port 3000 if still in use
+        if lsof -i :3000 | grep LISTEN; then
+          echo "Port 3000 is in use. Releasing..."
+          fuser -k 3000/tcp || true
+        else
+          echo "Port 3000 is free."
+        fi
+      """
     }
   }
 }
