@@ -11,26 +11,26 @@ pipeline {
       steps {
         script {
           sh """
-            echo "🧹 Cleaning up old container and port 3000..."
+            echo "🧹 Cleaning up old container and port 5000..."
 
-            # Force stop and remove any container with the same name
+            # Force remove container by name if it exists
             docker rm -f $CONTAINER_NAME 2>/dev/null || echo "No container named $CONTAINER_NAME"
 
-            # Stop & remove any containers using port 3000
-            CONTAINERS=\$(docker ps -a --filter 'publish=3000' --format '{{.ID}}')
+            # Remove any containers using port 5000
+            CONTAINERS=\$(docker ps -a --filter 'publish=5000' --format '{{.ID}}')
             if [ ! -z "\$CONTAINERS" ]; then
-              echo "Removing container(s) using port 3000: \$CONTAINERS"
+              echo "Removing container(s) using port 5000: \$CONTAINERS"
               docker rm -f \$CONTAINERS || true
             else
-              echo "✅ No containers using port 3000."
+              echo "✅ No containers using port 5000."
             fi
 
-            # Kill any system process using port 3000
-            if lsof -i :3000 | grep LISTEN; then
-              echo "Killing system process using port 3000"
-              fuser -k 3000/tcp || true
+            # Kill any system process using port 5000
+            if lsof -i :5000 | grep LISTEN; then
+              echo "Killing system process using port 5000"
+              fuser -k 5000/tcp || true
             else
-              echo "✅ Port 3000 is free."
+              echo "✅ Port 5000 is free."
             fi
           """
         }
@@ -46,8 +46,8 @@ pipeline {
 
     stage('🚀 Run New Docker Container') {
       steps {
-        echo "Running container: $CONTAINER_NAME"
-        sh "docker run -d --name $CONTAINER_NAME --restart unless-stopped -p 3000:3000 $DOCKER_IMAGE"
+        echo "Running container: $CONTAINER_NAME on port 5000"
+        sh "docker run -d --name $CONTAINER_NAME --restart unless-stopped -p 5000:3000 $DOCKER_IMAGE"
       }
     }
   }
