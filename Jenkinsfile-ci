@@ -2,22 +2,22 @@ pipeline {
   agent any
 
   environment {
-    SONARQUBE = 'SonarQube'
-    DOCKER_IMAGE = 'vinay4729/primevideo-app:latest'
-    SCANNER_HOME = tool 'sonar-scanner'
+    SONARQUBE = 'SonarQube'                           // Name from Jenkins > Configure System
+    DOCKER_IMAGE = 'vinay4729/primevideo-app:latest'  // Change if needed
+    SCANNER_HOME = tool 'sonar-scanner'               // Tool name configured in Jenkins
   }
 
   tools {
-    nodejs 'node18'
+    nodejs 'node18'     // Name defined in Jenkins > Global Tool Configuration
     jdk 'jdk-17'
   }
 
   stages {
-    stage('📥 Clone Code from GitHub') {
+    stage('📥 Checkout Code') {
       steps {
-        git branch: 'main',
+        git branch: 'Backup-Branch-1',
             credentialsId: 'github-token',
-            url: 'https://github.com/vinay4729/primevideo-devsecops-vinay4729'
+            url: 'https://github.com/vinay4729/primevideo-devsecops-vinay4729.git'
       }
     }
 
@@ -27,12 +27,12 @@ pipeline {
       }
       steps {
         withSonarQubeEnv("${SONARQUBE}") {
-          sh 'sonar-scanner -Dsonar.projectKey=prime-video -Dsonar.sources=.'
+          sh 'sonar-scanner -Dsonar.projectKey=primevideo -Dsonar.sources=.'
         }
       }
     }
 
-    stage('🐳 Build Docker Image') {
+    stage('🐳 Docker Build') {
       steps {
         sh 'docker build -t $DOCKER_IMAGE .'
       }
@@ -40,15 +40,17 @@ pipeline {
 
     stage('🛡️ Trivy Image Scan') {
       steps {
-        sh 'trivy image $DOCKER_IMAGE || true'
+        sh 'trivy image $DOCKER_IMAGE || true'   // avoid pipeline failure on vuln findings
       }
     }
 
-    stage('📤 Push Image to DockerHub') {
+    stage('📤 Docker Push') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-          sh 'docker push $DOCKER_IMAGE'
+          sh '''
+            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+            docker push $DOCKER_IMAGE
+          '''
         }
       }
     }
@@ -57,10 +59,10 @@ pipeline {
   post {
     success {
       echo '✅ CI Pipeline completed successfully.'
-      build job: 'primevideo-cd'
     }
     failure {
-      echo '❌ CI Pipeline failed.'
+      echo '❌ CI Pipeline failed. Check logs for details.'
     }
   }
 }
+
