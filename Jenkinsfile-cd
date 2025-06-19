@@ -11,53 +11,34 @@ pipeline {
       steps {
         script {
           sh """
-            # Stop container if it's running
+            echo "🛑 Cleaning up old container and port 3000..."
+
+            # Stop and remove container if it exists
             if docker ps -q -f name=$CONTAINER_NAME | grep -q .; then
-              echo "Stopping running container: $CONTAINER_NAME"
+              echo "Stopping container $CONTAINER_NAME"
               docker stop $CONTAINER_NAME
             fi
 
-            # Remove container if it exists (running or stopped)
             if docker ps -aq -f name=$CONTAINER_NAME | grep -q .; then
-              echo "Removing existing container: $CONTAINER_NAME"
+              echo "Removing container $CONTAINER_NAME"
               docker rm $CONTAINER_NAME
             fi
 
-            # Free port 3000 if still in use
+            # Kill any container using port 3000
+            docker ps --filter publish=3000 --format '{{.ID}}' | xargs -r docker stop || true
+            docker ps -a --filter publish=3000 --format '{{.ID}}' | xargs -r docker rm || true
+
+            # Kill any process (not docker) using port 3000
             if lsof -i :3000 | grep LISTEN; then
-              echo "Port 3000 is in use. Releasing..."
+              echo "Freeing port 3000 from system process"
               fuser -k 3000/tcp || true
             else
-              echo "Port 3000 is free."
+              echo "✅ Port 3000 is already free."
             fi
           """
         }
       }
     }
-
-    stage('📥 Pull Docker Image from DockerHub') {
-      steps {
-        echo "Pulling latest image: $DOCKER_IMAGE"
-        sh 'docker pull $DOCKER_IMAGE'
-      }
-    }
-
-    stage('🚀 Run New Docker Container') {
-      steps {
-        echo "Running container: $CONTAINER_NAME"
-        sh 'docker run -d --name $CONTAINER_NAME --restart unless-stopped -p 3000:3000 $DOCKER_IMAGE'
-      }
-    }
-  }
-
-  post {
-    success {
-      echo '✅ Deployment successful.'
-    }
-    failure {
-      echo '❌ Deployment failed.'
-    }
   }
 }
-
 
