@@ -11,9 +11,17 @@ pipeline {
       steps {
         script {
           sh """
+            # Stop and remove existing container if running
             docker ps -q --filter "name=$CONTAINER_NAME" | grep -q . && \
-            docker stop $CONTAINER_NAME && \
-            docker rm $CONTAINER_NAME || echo "No existing container to stop."
+            docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME || echo "No existing container to stop."
+
+            # Free up port 3000 if anything is using it
+            if lsof -i :3000 | grep LISTEN; then
+              echo "Port 3000 is in use. Killing process..."
+              fuser -k 3000/tcp || true
+            else
+              echo "Port 3000 is free."
+            fi
           """
         }
       }
@@ -43,3 +51,4 @@ pipeline {
     }
   }
 }
+
